@@ -8,8 +8,6 @@ import StudentManagement from './components/students/StudentManagement';
 import RentalManagement from './components/rentals/RentalManagement';
 import UserManagement from './components/users/UserManagement';
 
-// Simple router component for demo purposes
-// In a real app, use React Router
 const AppRouter: React.FC = () => {
   const { user, isLoading } = useAuth();
   const [currentRoute, setCurrentRoute] = React.useState('dashboard');
@@ -64,7 +62,6 @@ const AppRouter: React.FC = () => {
     return <LoginForm />;
   }
 
-  // Simple routing
   switch (currentRoute) {
     case 'lockers':
       return <LockerManagement />;
