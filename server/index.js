@@ -10,7 +10,7 @@ import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import dashboardRoutes from './routes/dashboard.js';
 import studentRoutes from './routes/students.js';
-import lockerRoutes from './routes/lockers.js';
+import lockerRoutes from './routes/lockers.js';  // rota de armários
 import rentalRoutes from './routes/rentals.js';
 
 dotenv.config();
@@ -42,7 +42,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/students', studentRoutes);
-app.use('/api/lockers', lockerRoutes);
+app.use('/api/lockers', lockerRoutes);  // rota armários
 app.use('/api/rentals', rentalRoutes);
 
 // Health check endpoint
@@ -60,7 +60,6 @@ app.get('/api/health', (req, res) => {
 app.use((err, req, res, next) => {
   console.error('❌ Server Error:', err);
   
-  // Handle specific error types
   if (err.name === 'ValidationError') {
     return res.status(400).json({
       success: false,
@@ -83,7 +82,6 @@ app.use((err, req, res, next) => {
     });
   }
   
-  // Default error response
   res.status(500).json({
     success: false,
     message: process.env.NODE_ENV === 'production' 
