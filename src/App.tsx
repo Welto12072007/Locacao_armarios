@@ -15,6 +15,14 @@ const AppRouter: React.FC = () => {
   const [currentRoute, setCurrentRoute] = React.useState('dashboard');
 
   React.useEffect(() => {
+    // Redireciona para hash reset-password se necessário
+    if (
+      window.location.pathname === '/reset-password' &&
+      !window.location.hash.startsWith('#reset-password')
+    ) {
+      window.location.hash = 'reset-password';
+    }
+
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1) || 'dashboard';
       setCurrentRoute(hash);
@@ -38,15 +46,15 @@ const AppRouter: React.FC = () => {
   if (currentRoute.startsWith('reset-password')) {
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
-    
+
     if (token) {
       return (
-        <ResetPasswordForm 
-          token={token} 
+        <ResetPasswordForm
+          token={token}
           onSuccess={() => {
             alert('Senha redefinida com sucesso! Faça login com sua nova senha.');
             window.location.href = '/';
-          }} 
+          }}
         />
       );
     }

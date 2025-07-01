@@ -1,8 +1,7 @@
 import { 
   Student, 
   Locker, 
-  Rental, 
-  Payment, 
+  Rental,  
   DashboardStats, 
   ApiResponse, 
   PaginatedResponse 

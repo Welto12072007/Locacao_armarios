@@ -1,6 +1,15 @@
 import { supabase } from '../config/database.js';
+import bcrypt from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
 
 export class User {
+  static formatUser(user) {
+    if (!user) return null;
+    // Retorne apenas os campos que você quer expor para o frontend
+    const { id, name, email, role, created_at, updated_at } = user;
+    return { id, name, email, role, created_at, updated_at };
+  }
+
   static async findByEmail(email) {
     try {
       const { data, error } = await supabase
@@ -18,6 +27,11 @@ export class User {
       console.error('Error finding user by email:', error);
       throw error;
     }
+  }
+
+  static async validatePassword(plainPassword, hashedPassword) {
+    console.log('Comparando:', plainPassword, hashedPassword);
+    return bcrypt.compare(plainPassword, hashedPassword);
   }
 
   static async findById(id) {
@@ -39,8 +53,22 @@ export class User {
     }
   }
 
+  static async generateResetToken(email) {
+    const user = await this.findByEmail(email);
+    if (!user) throw new Error('User not found');
+
+    const resetToken = uuidv4();
+    const expiry = new Date(Date.now() + 30 * 60 * 1000); // 30 minutos
+
+    await this.setResetToken(email, resetToken, expiry.toISOString());
+    return resetToken;
+  }
+
   static async create(userData) {
     try {
+      if (userData.password) {
+        userData.password = await bcrypt.hash(userData.password, 12);
+      }
       const { data, error } = await supabase
         .from('users')
         .insert([userData])
@@ -119,7 +147,7 @@ export class User {
     try {
       const { error } = await supabase
         .from('users')
-        .update({ 
+        .update({
           failed_login_attempts: attempts,
           locked_until: attempts >= 5 ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : null
         })
@@ -134,6 +162,21 @@ export class User {
       console.error('Error updating failed login attempts:', error);
       throw error;
     }
+  }
+
+  static async incrementFailedAttempts(email) {
+    // Busca o usuário pelo email
+    const user = await this.findByEmail(email);
+    if (!user) return;
+
+    const attempts = (user.failed_login_attempts || 0) + 1;
+    await this.updateFailedLoginAttempts(user.id, attempts);
+  }
+
+  static async resetFailedAttempts(email) {
+    const user = await this.findByEmail(email);
+    if (!user) return;
+    await this.updateFailedLoginAttempts(user.id, 0);
   }
 
   static async setResetToken(email, token, expiry) {

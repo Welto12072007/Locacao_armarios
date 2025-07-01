@@ -1,6 +1,9 @@
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User.js';
 import { sendResetPasswordEmail } from './emailService.js';
+import bcrypt from 'bcryptjs';
+import { supabase } from '../config/database.js';
+
 
 class AuthService {
   static generateTokens(userId) {
@@ -46,15 +49,14 @@ class AuthService {
   static async login(email, password) {
     console.log('🔐 Login attempt for:', email);
 
-    // Check if account is locked
-    if (await User.isAccountLocked(email)) {
-      throw new Error('Account is temporarily locked due to too many failed attempts');
-    }
-
     const user = await User.findByEmail(email);
     if (!user) {
       console.log('❌ User not found:', email);
       throw new Error('Invalid credentials');
+    }
+
+    if (user.locked_until && new Date(user.locked_until) > new Date()) {
+      throw new Error('Account is temporarily locked due to too many failed attempts');
     }
 
     const isValidPassword = await User.validatePassword(password, user.password);
@@ -118,7 +120,7 @@ class AuthService {
     }
 
     const resetToken = await User.generateResetToken(email);
-    
+
     // Send reset email
     await sendResetPasswordEmail(email, resetToken);
 
@@ -126,13 +128,35 @@ class AuthService {
   }
 
   static async resetPassword(token, newPassword) {
-    if (newPassword.length < 8) {
-      throw new Error('Password must be at least 8 characters long');
-    }
+    try {
+      // Procura o usuário pelo token válido e não expirado
+      const user = await User.findByResetToken(token);
+      if (!user) {
+        throw new Error('Token inválido ou expirado');
+      }
 
-    const user = await User.resetPassword(token, newPassword);
-    return user;
+      // Atualiza a senha (com hash)
+      const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+      const { error } = await supabase
+        .from('users')
+        .update({
+          password: hashedPassword,
+          reset_password_token: null,
+          reset_token_expiry: null
+        })
+        .eq('id', user.id);
+
+      if (error) {
+        throw error;
+      }
+        return user;
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      throw error;
+    }
   }
+
 
   static async validateResetToken(token) {
     const user = await User.findByResetToken(token);
