@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, MapPin, FileText, Calendar } from 'lucide-react';
+import { Plus, Edit, Trash2, MapPin, FileText, Calendar, X, Save } from 'lucide-react';
 import Layout from '../common/Layout';
 import Button from '../common/Button';
 import Table from '../common/Table';
@@ -12,7 +12,9 @@ const LocalManagement: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const [showForm, setShowForm] = useState(false);
+
+  const [formData, setFormData] = useState<{ nome: string; descricao?: string }>({ nome: '', descricao: '' });
+  const [editandoLocal, setEditandoLocal] = useState<Local | null>(null);
 
   useEffect(() => {
     loadLocais();
@@ -21,10 +23,10 @@ const LocalManagement: React.FC = () => {
   const loadLocais = async () => {
     try {
       setLoading(true);
-      const res = await apiService.getLocais(currentPage, 10);
-      setLocais(res.data);
-      setTotal(res.total);
-      setTotalPages(res.totalPages);
+      const response = await apiService.getLocais(currentPage, 10);
+      setLocais(response.data);
+      setTotal(response.total);
+      setTotalPages(response.totalPages);
     } catch (error) {
       console.error('Erro ao carregar locais:', error);
     } finally {
@@ -36,30 +38,47 @@ const LocalManagement: React.FC = () => {
     return new Date(dateString).toLocaleDateString('pt-BR');
   };
 
-  const handleAdd = () => {
-    setShowForm(true);
-  };
-
-  const handleFormSubmit = async (data: { nome: string; descricao?: string }) => {
+  const handleAdd = async () => {
+    if (!formData.nome) return;
     try {
-      await apiService.createLocal(data);
-      setShowForm(false);
-      loadLocais();
+      await apiService.createLocal(formData);
+      setFormData({ nome: '', descricao: '' });
+      await loadLocais();
     } catch (error) {
       console.error('Erro ao criar local:', error);
     }
   };
 
   const handleEdit = (id: string) => {
-    console.log('Editar local:', id);
-    // Implemente depois se quiser edição
+    const local = locais.find(l => l.id === id);
+    if (local) {
+      setEditandoLocal(local);
+      setFormData({ nome: local.nome, descricao: local.descricao });
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editandoLocal) return;
+    try {
+      await apiService.updateLocal(editandoLocal.id, formData);
+      setEditandoLocal(null);
+      setFormData({ nome: '', descricao: '' });
+      await loadLocais();
+    } catch (error) {
+      console.error('Erro ao editar local:', error);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditandoLocal(null);
+    setFormData({ nome: '', descricao: '' });
   };
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Tem certeza que deseja excluir este local?')) {
       try {
         await apiService.deleteLocal(id);
-        loadLocais();
+        await loadLocais();
       } catch (error) {
         console.error('Erro ao excluir local:', error);
       }
@@ -101,9 +120,14 @@ const LocalManagement: React.FC = () => {
     {
       key: 'actions',
       label: 'Ações',
-      render: (_: any, row: Local) => (
+      render: (value: any, row: Local) => (
         <div className="flex space-x-2">
-          <Button variant="ghost" size="sm" icon={Edit} onClick={() => handleEdit(row.id)} />
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={Edit}
+            onClick={() => handleEdit(row.id)}
+          />
           <Button
             variant="ghost"
             size="sm"
@@ -125,61 +149,45 @@ const LocalManagement: React.FC = () => {
             <h1 className="text-2xl font-bold text-gray-900">Gestão de Locais</h1>
             <p className="text-gray-600">Gerencie os locais dos armários cadastrados</p>
           </div>
-          <Button icon={Plus} onClick={handleAdd}>
-            Novo Local
-          </Button>
         </div>
 
-        {/* Formulário (quando aberto) */}
-        {showForm && (
-          <div className="bg-white p-4 border rounded shadow-md">
-            <h2 className="text-lg font-semibold mb-4">Novo Local</h2>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const form = e.target as HTMLFormElement;
-                const nome = (form.elements.namedItem('nome') as HTMLInputElement).value;
-                const descricao = (form.elements.namedItem('descricao') as HTMLInputElement).value;
-                handleFormSubmit({ nome, descricao });
-              }}
-              className="space-y-4"
-            >
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Nome</label>
-                <input
-                  name="nome"
-                  type="text"
-                  required
-                  className="mt-1 block w-full border rounded p-2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Descrição</label>
-                <textarea
-                  name="descricao"
-                  className="mt-1 block w-full border rounded p-2"
-                />
-              </div>
-              <div className="flex justify-end space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-white bg-indigo-600 rounded hover:bg-indigo-700"
-                >
-                  Salvar
-                </button>
-              </div>
-            </form>
+        {/* Formulário de criação/edição */}
+        <div className="bg-white p-4 shadow rounded-md space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input
+              type="text"
+              className="border rounded px-3 py-2 w-full"
+              placeholder="Nome do local"
+              value={formData.nome}
+              onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+            />
+            <input
+              type="text"
+              className="border rounded px-3 py-2 w-full"
+              placeholder="Descrição (opcional)"
+              value={formData.descricao || ''}
+              onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+            />
           </div>
-        )}
+          <div className="flex space-x-2">
+            {editandoLocal ? (
+              <>
+                <Button icon={Save} onClick={handleSaveEdit}>
+                  Salvar Alterações
+                </Button>
+                <Button icon={X} variant="secondary" onClick={handleCancelEdit}>
+                  Cancelar
+                </Button>
+              </>
+            ) : (
+              <Button icon={Plus} onClick={handleAdd}>
+                Novo Local
+              </Button>
+            )}
+          </div>
+        </div>
 
-        {/* Tabela */}
+        {/* Locais Table */}
         <Table
           columns={columns}
           data={locais}
