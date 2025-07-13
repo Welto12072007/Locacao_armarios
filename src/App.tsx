@@ -7,6 +7,7 @@ import LockerManagement from './components/lockers/LockerManagement';
 import StudentManagement from './components/students/StudentManagement';
 import RentalManagement from './components/rentals/RentalManagement';
 import UserManagement from './components/users/UserManagement';
+import LocalManagement from './components/locais/LocalManagement';  // importe o componente Locais
 
 const AppRouter: React.FC = () => {
   const { user, isLoading } = useAuth();
@@ -69,8 +70,9 @@ const AppRouter: React.FC = () => {
       return <StudentManagement />;
     case 'rentals':
       return <RentalManagement />;
+    case 'locais':        // novo case para locais
+      return <LocalManagement />;
     case 'users':
-      // Only admins can access user management
       if (user.role === 'admin') {
         return <UserManagement />;
       }
@@ -78,6 +80,8 @@ const AppRouter: React.FC = () => {
     case 'dashboard':
     default:
       return <Dashboard />;
+      case 'locais':
+  return <LocalManagement />;
   }
 };
 

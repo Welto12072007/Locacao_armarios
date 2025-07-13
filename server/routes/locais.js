@@ -1,12 +1,21 @@
 import express from 'express';
-import * as locaisController from '../controllers/locais.js';
+import {
+  getAllLocais,
+  getLocalById,
+  createLocal,
+  updateLocal,
+  deleteLocal
+} from '../controllers/locais.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 
-router.get('/', locaisController.getAllLocais);
-router.get('/:id', locaisController.getLocalById);
-router.post('/', locaisController.createLocal);
-router.put('/:id', locaisController.updateLocal);
-router.delete('/:id', locaisController.deleteLocal);
+router.use(authenticate);
+
+router.get('/', getAllLocais);
+router.get('/:id', getLocalById);
+router.post('/', createLocal);
+router.put('/:id', updateLocal);
+router.delete('/:id', deleteLocal);
 
 export default router;
