@@ -12,7 +12,7 @@ Sistema completo para gestão de armários escolares/universitários com interfa
 
 ### Backend
 - **Node.js** com Express
-- **MySQL/MariaDB** como banco de dados
+- **Supabase (PostgreSQL)** como banco de dados
 - **JWT** para autenticação
 - **bcryptjs** para hash de senhas
 
@@ -30,25 +30,27 @@ Sistema completo para gestão de armários escolares/universitários com interfa
 ### 1. Pré-requisitos
 
 - Node.js 18+
-- MySQL ou MariaDB
+- Conta no Supabase (gratuita)
 - npm ou yarn
 
 ### 2. Configuração do Banco de Dados
 
-1. Instale MySQL/MariaDB
-2. Crie um banco de dados:
-```sql
-CREATE DATABASE locker_management;
-```
+O projeto usa **Supabase** como backend-as-a-service. Configure as credenciais no arquivo `.env`:
 
-3. Configure as credenciais no arquivo `.env`:
 ```env
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=sua_senha
-DB_NAME=locker_management
-JWT_SECRET=sua_chave_secreta_jwt
+# Supabase Configuration
+SUPABASE_URL=sua_url_do_supabase
+SUPABASE_ANON_KEY=sua_chave_anonima
+SUPABASE_SERVICE_ROLE_KEY=sua_chave_service_role
+
+# JWT Configuration
+JWT_ACCESS_SECRET=sua_chave_secreta_jwt
+JWT_REFRESH_SECRET=sua_chave_secreta_refresh
+
+# Application Configuration
+NODE_ENV=development
+FRONTEND_URL=http://localhost:5173
+VITE_API_URL=http://localhost:3001/api
 ```
 
 ### 3. Instalação

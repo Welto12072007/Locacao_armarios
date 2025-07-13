@@ -4,7 +4,8 @@ import {
   getStudent,
   createStudent,
   updateStudent,
-  deleteStudent
+  deleteStudent,
+  getStudentStats
 } from '../controllers/studentController.js';
 import { authenticate } from '../middleware/auth.js';
 
@@ -12,6 +13,7 @@ const router = express.Router();
 
 router.use(authenticate);
 
+router.get('/stats', getStudentStats);
 router.get('/', getStudents);
 router.get('/:id', getStudent);
 router.post('/', createStudent);

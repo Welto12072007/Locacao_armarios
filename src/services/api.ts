@@ -245,6 +245,16 @@ class ApiService {
     return response;
   }
 
+  async getStudentStats(): Promise<{ total: number; active: number; inactive: number }> {
+    const response = await this.request<ApiResponse<{ total: number; active: number; inactive: number }>>('/students/stats');
+    
+    if (response.success) {
+      return response.data;
+    }
+
+    throw new Error(response.message);
+  }
+
   // Lockers
   async getLockers(page = 1, limit = 10): Promise<PaginatedResponse<Locker>> {
     const response = await this.request<PaginatedResponse<Locker>>(`/lockers?page=${page}&limit=${limit}`);
