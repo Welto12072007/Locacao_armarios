@@ -4,12 +4,18 @@ export const getRentals = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || '';
+    const offset = (page - 1) * limit;
 
-    const result = await Rental.findAll(page, limit);
+    const result = await Rental.findAll(limit, offset, search);
 
     res.json({
       success: true,
-      ...result
+      data: result.rentals,
+      total: result.total,
+      page,
+      limit,
+      totalPages: Math.ceil(result.total / limit)
     });
   } catch (error) {
     console.error('Get rentals error:', error);
@@ -67,14 +73,14 @@ export const createRental = async (req, res) => {
     }
 
     const rental = await Rental.create({
-      lockerId,
-      studentId,
-      startDate,
-      endDate,
-      monthlyPrice,
-      totalAmount,
-      status,
-      paymentStatus,
+      locker_id: lockerId,
+      student_id: studentId,
+      start_date: startDate,
+      end_date: endDate,
+      monthly_price: monthlyPrice,
+      total_amount: totalAmount,
+      status: status || 'active',
+      payment_status: paymentStatus || 'pending',
       notes
     });
 
@@ -95,7 +101,29 @@ export const createRental = async (req, res) => {
 export const updateRental = async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const {
+      lockerId,
+      studentId,
+      startDate,
+      endDate,
+      monthlyPrice,
+      totalAmount,
+      status,
+      paymentStatus,
+      notes
+    } = req.body;
+
+    const updateData = {
+      ...(lockerId && { locker_id: lockerId }),
+      ...(studentId && { student_id: studentId }),
+      ...(startDate && { start_date: startDate }),
+      ...(endDate && { end_date: endDate }),
+      ...(monthlyPrice && { monthly_price: monthlyPrice }),
+      ...(totalAmount && { total_amount: totalAmount }),
+      ...(status && { status }),
+      ...(paymentStatus && { payment_status: paymentStatus }),
+      ...(notes !== undefined && { notes })
+    };
 
     const rental = await Rental.update(id, updateData);
 

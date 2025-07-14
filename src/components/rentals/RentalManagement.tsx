@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Calendar, Package, Users, DollarSign, Clock } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, Package, Users, DollarSign, Clock, Search } from 'lucide-react';
 import Layout from '../common/Layout';
 import Button from '../common/Button';
 import Table from '../common/Table';
 import { Rental } from '../../types';
 import { apiService } from '../../services/api';
+import RentalForm from './RentalForm';
 
 const RentalManagement: React.FC = () => {
   const [rentals, setRentals] = useState<Rental[]>([]);
@@ -12,23 +13,55 @@ const RentalManagement: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [editingRental, setEditingRental] = useState<Rental | null>(null);
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    overdue: 0,
+    completed: 0,
+    revenue: 0
+  });
 
   useEffect(() => {
     loadRentals();
-  }, [currentPage]);
+    loadStats();
+  }, [currentPage, searchTerm]);
 
   const loadRentals = async () => {
-    try {
-      setLoading(true);
-      const response = await apiService.getRentals(currentPage, 10);
+  try {
+    setLoading(true);
+    const response = await apiService.getRentals(currentPage, 10, searchTerm);
+    
+    if (response && response.data) {
       setRentals(response.data);
-      setTotalPages(response.totalPages);
       setTotal(response.total);
-    } catch (error) {
-      console.error('Error loading rentals:', error);
-    } finally {
-      setLoading(false);
+      setTotalPages(Math.ceil(response.total / 10));
     }
+  } catch (error) {
+    console.error('Error loading rentals:', error);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+  const loadStats = async () => {
+    try {
+      const response = await apiService.getRentalStats();
+      if (response.success) {
+        setStats(response.data);
+      }
+    } catch (error) {
+      console.error('Error loading stats:', error);
+    }
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCurrentPage(1);
+    loadRentals();
   };
 
   const getStatusBadge = (status: Rental['status']) => {
@@ -66,24 +99,25 @@ const RentalManagement: React.FC = () => {
     return new Date(dateString).toLocaleDateString('pt-BR');
   };
 
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
+
   const columns = [
-    {
-      key: 'locker',
-      label: 'Armário',
-      render: (value: any, row: Rental) => (
-        <div className="flex items-center">
-          <Package className="h-4 w-4 text-gray-400 mr-2" />
-          <div>
-            <div className="text-sm font-medium text-gray-900">
-              {row.locker?.number || 'N/A'}
-            </div>
-            <div className="text-xs text-gray-500">
-              {row.locker?.location || 'N/A'}
-            </div>
-          </div>
-        </div>
-      ),
-    },
+{
+  key: 'monthly_price',
+  label: 'Valor Mensal',
+  render: (_value: any, row: Rental) => (
+    <div className="flex items-center">
+      <DollarSign className="h-4 w-4 text-gray-400 mr-1" />
+      <span className="text-sm text-gray-900">{formatCurrency(row.monthly_price)}</span>
+    </div>
+  ),
+},
+
     {
       key: 'student',
       label: 'Aluno',
@@ -92,16 +126,16 @@ const RentalManagement: React.FC = () => {
           <div className="flex-shrink-0 h-8 w-8">
             <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
               <span className="text-white font-medium text-xs">
-                {row.student?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'N/A'}
+                {row.students?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'N/A'}
               </span>
             </div>
           </div>
           <div className="ml-3">
             <div className="text-sm font-medium text-gray-900">
-              {row.student?.name || 'N/A'}
+              {row.students?.name || 'N/A'}
             </div>
             <div className="text-xs text-gray-500">
-              {row.student?.studentId || 'N/A'}
+              {row.students?.email || 'N/A'}
             </div>
           </div>
         </div>
@@ -115,20 +149,32 @@ const RentalManagement: React.FC = () => {
           <Calendar className="h-4 w-4 text-gray-400 mr-2" />
           <div>
             <div className="text-sm text-gray-900">
-              {formatDate(row.startDate)} - {formatDate(row.endDate)}
+              {formatDate(row.start_date)} - {formatDate(row.end_date)}
             </div>
           </div>
         </div>
       ),
     },
     {
-      key: 'totalAmount',
+      key: 'monthly_price',
+      label: 'Valor Mensal',
+      render: (value: number) => (
+        <div className="flex items-center">
+          <DollarSign className="h-4 w-4 text-gray-400 mr-1" />
+          <span className="text-sm text-gray-900">
+            {formatCurrency(value)}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'total_amount',
       label: 'Valor Total',
       render: (value: number) => (
         <div className="flex items-center">
           <DollarSign className="h-4 w-4 text-gray-400 mr-1" />
           <span className="text-sm font-medium text-gray-900">
-            R$ {value.toLocaleString('pt-BR')}
+            {formatCurrency(value)}
           </span>
         </div>
       ),
@@ -139,7 +185,7 @@ const RentalManagement: React.FC = () => {
       render: (value: Rental['status']) => getStatusBadge(value),
     },
     {
-      key: 'paymentStatus',
+      key: 'payment_status',
       label: 'Pagamento',
       render: (value: Rental['paymentStatus']) => getPaymentStatusBadge(value),
     },
@@ -152,7 +198,7 @@ const RentalManagement: React.FC = () => {
             variant="ghost"
             size="sm"
             icon={Edit}
-            onClick={() => handleEdit(row.id)}
+            onClick={() => handleEdit(row)}
           />
           <Button
             variant="ghost"
@@ -167,25 +213,70 @@ const RentalManagement: React.FC = () => {
   ];
 
   const handleAdd = () => {
-    console.log('Add new rental');
-    // In a real app, open modal or navigate to form
+    setEditingRental(null);
+    setShowForm(true);
   };
 
-  const handleEdit = (id: string) => {
-    console.log('Edit rental:', id);
-    // In a real app, open modal or navigate to form
+  const handleEdit = (rental: Rental) => {
+    setEditingRental(rental);
+    setShowForm(true);
   };
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Tem certeza que deseja excluir esta locação?')) {
       try {
-        await apiService.deleteRental(id);
-        loadRentals();
+        const response = await apiService.deleteRental(id);
+        if (response.success) {
+          loadRentals();
+          loadStats();
+        }
       } catch (error) {
         console.error('Error deleting rental:', error);
+        alert('Erro ao excluir locação');
       }
     }
   };
+
+  const handleFormSubmit = async (rentalData: any) => {
+    try {
+      let response;
+      
+      if (editingRental) {
+        response = await apiService.updateRental(editingRental.id, rentalData);
+      } else {
+        response = await apiService.createRental(rentalData);
+      }
+
+      if (response.success) {
+        setShowForm(false);
+        setEditingRental(null);
+        loadRentals();
+        loadStats();
+      } else {
+        alert('Erro ao salvar locação');
+      }
+    } catch (error) {
+      console.error('Error saving rental:', error);
+      alert('Erro ao salvar locação');
+    }
+  };
+
+  const handleFormCancel = () => {
+    setShowForm(false);
+    setEditingRental(null);
+  };
+
+  if (showForm) {
+    return (
+      <Layout currentPage="rentals">
+        <RentalForm
+          rental={editingRental}
+          onSubmit={handleFormSubmit}
+          onCancel={handleFormCancel}
+        />
+      </Layout>
+    );
+  }
 
   return (
     <Layout currentPage="rentals">
@@ -201,6 +292,27 @@ const RentalManagement: React.FC = () => {
           </Button>
         </div>
 
+        {/* Search */}
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+          <form onSubmit={handleSearch} className="flex gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <input
+                  type="text"
+                  placeholder="Buscar por observações..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+            <Button type="submit" variant="secondary">
+              Buscar
+            </Button>
+          </form>
+        </div>
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <div className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
@@ -212,7 +324,7 @@ const RentalManagement: React.FC = () => {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">Locações Ativas</dt>
-                    <dd className="text-lg font-medium text-gray-900">98</dd>
+                    <dd className="text-lg font-medium text-gray-900">{stats.active}</dd>
                   </dl>
                 </div>
               </div>
@@ -228,7 +340,7 @@ const RentalManagement: React.FC = () => {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">Em Atraso</dt>
-                    <dd className="text-lg font-medium text-gray-900">12</dd>
+                    <dd className="text-lg font-medium text-gray-900">{stats.overdue}</dd>
                   </dl>
                 </div>
               </div>
@@ -243,8 +355,8 @@ const RentalManagement: React.FC = () => {
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Receita Mensal</dt>
-                    <dd className="text-lg font-medium text-gray-900">R$ 29.400</dd>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Receita Total</dt>
+                    <dd className="text-lg font-medium text-gray-900">{formatCurrency(stats.revenue)}</dd>
                   </dl>
                 </div>
               </div>
@@ -260,7 +372,7 @@ const RentalManagement: React.FC = () => {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">Concluídas</dt>
-                    <dd className="text-lg font-medium text-gray-900">247</dd>
+                    <dd className="text-lg font-medium text-gray-900">{stats.completed}</dd>
                   </dl>
                 </div>
               </div>
