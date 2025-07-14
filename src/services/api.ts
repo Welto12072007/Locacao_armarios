@@ -7,6 +7,7 @@ import {
   PaginatedResponse,
   ArmarioStats,
   Armario as ArmarioType,
+  Local,
 } from '../types';
 
 class ApiService {
@@ -268,6 +269,39 @@ class ApiService {
   async getLockers(): Promise<PaginatedResponse<Locker>> {
     return this.request('/lockers');
   }
+
+  // LOCALS - CRUD de Locais
+
+async getLocais(page = 1, limit = 10): Promise<PaginatedResponse<Local>> {
+  return this.request(`/locais?page=${page}&limit=${limit}`);
+}
+
+async getLocal(id: string): Promise<Local> {
+  const response = await this.request<ApiResponse<Local>>(`/locais/${id}`);
+  if (response.success) return response.data;
+  throw new Error(response.message);
+}
+
+async createLocal(local: { nome: string; descricao?: string }): Promise<ApiResponse<Local>> {
+  return this.request('/locais', {
+    method: 'POST',
+    body: JSON.stringify(local),
+  });
+}
+
+async updateLocal(id: string, local: { nome?: string; descricao?: string }): Promise<ApiResponse<Local>> {
+  return this.request(`/locais/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(local),
+  });
+}
+
+async deleteLocal(id: string): Promise<ApiResponse<null>> {
+  return this.request(`/locais/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 }
 
 // Exportando uma instância do ApiService

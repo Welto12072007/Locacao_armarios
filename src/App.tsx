@@ -80,8 +80,6 @@ const AppRouter: React.FC = () => {
     case 'dashboard':
     default:
       return <Dashboard />;
-      case 'locais':
-  return <LocalManagement />;
   }
 };
 
