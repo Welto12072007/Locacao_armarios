@@ -7,8 +7,6 @@ import {
   PaginatedResponse,
   ArmarioStats,
   Armario as ArmarioType,
-  // Adicione o tipo User abaixo se ele existir no arquivo types
-  // User,
 } from '../types';
 
 class ApiService {
@@ -213,7 +211,17 @@ class ApiService {
   async getArmarios(page = 1, limit = 10): Promise<PaginatedResponse<Locker>> {
     return this.request(`/armarios?page=${page}&limit=${limit}`);
   }
+  async getStudentStats(): Promise<{ total: number; active: number; inactive: number }> {
+    const response = await this.request<ApiResponse<{ total: number; active: number; inactive: number }>>('/students/stats');
+    
+    if (response.success) {
+      return response.data;
+    }
 
+    throw new Error(response.message);
+  }
+
+  // Lockers
   async getArmario(id: string): Promise<Locker> {
     const response = await this.request<ApiResponse<Locker>>(`/armarios/${id}`);
     if (response.success) return response.data;

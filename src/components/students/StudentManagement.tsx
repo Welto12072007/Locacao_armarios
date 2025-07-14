@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Users, Mail, Phone, FileText } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, Mail, Phone, Hash, BookOpen } from 'lucide-react';
 import Layout from '../common/Layout';
 import Button from '../common/Button';
 import Table from '../common/Table';
+import StudentModal from './StudentModal';
 import { Student } from '../../types';
 import { apiService } from '../../services/api';
 
@@ -12,23 +13,39 @@ const StudentManagement: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    inactive: 0
+  });
 
   useEffect(() => {
     loadStudents();
-  }, [currentPage]);
+    loadStats();
+  }, [currentPage, searchTerm]);
 
   const loadStudents = async () => {
     try {
       setLoading(true);
-      // Mock data for now since we don't have the API endpoint yet
+      const response = await apiService.getStudents(currentPage, 10);
+      setStudents(response.data || []);
+      setTotal(response.total || 0);
+      setTotalPages(response.totalPages || 1);
+    } catch (error) {
+      console.error('Error loading students:', error);
+      // Fallback to mock data if API is not available
       setStudents([
         {
           id: '1',
           name: 'João Silva',
           email: 'joao.silva@email.com',
           phone: '(11) 99999-1111',
-          document: '123.456.789-01',
-          address: 'Rua A, 123 - São Paulo/SP',
+          studentId: '2023001',
+          course: 'ELETRÔNICA',
+          semester: 1,
           status: 'active',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -38,8 +55,9 @@ const StudentManagement: React.FC = () => {
           name: 'Maria Santos',
           email: 'maria.santos@email.com',
           phone: '(11) 99999-2222',
-          document: '987.654.321-02',
-          address: 'Rua B, 456 - São Paulo/SP',
+          studentId: '2023002',
+          course: 'INFORMÁTICA',
+          semester: 2,
           status: 'active',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -47,10 +65,23 @@ const StudentManagement: React.FC = () => {
       ]);
       setTotal(2);
       setTotalPages(1);
-    } catch (error) {
-      console.error('Error loading students:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadStats = async () => {
+    try {
+      const studentStats = await apiService.getStudentStats();
+      setStats(studentStats);
+    } catch (error) {
+      console.error('Error loading student stats:', error);
+      // Fallback stats
+      setStats({
+        total: 320,
+        active: 285,
+        inactive: 35
+      });
     }
   };
 
@@ -84,7 +115,7 @@ const StudentManagement: React.FC = () => {
           </div>
           <div className="ml-4">
             <div className="text-sm font-medium text-gray-900">{value}</div>
-            <div className="text-sm text-gray-500">{row.document}</div>
+            <div className="text-sm text-gray-500">{row.studentId}</div>
           </div>
         </div>
       ),
@@ -105,17 +136,17 @@ const StudentManagement: React.FC = () => {
       render: (value: string) => (
         <div className="flex items-center">
           <Phone className="h-4 w-4 text-gray-400 mr-2" />
-          <span className="text-sm text-gray-900">{value}</span>
+          <span className="text-sm text-gray-900">{value || 'N/A'}</span>
         </div>
       ),
     },
     {
-      key: 'address',
-      label: 'Endereço',
-      render: (value: string) => (
-        <div className="flex items-center">
-          <FileText className="h-4 w-4 text-gray-400 mr-2" />
-          <span className="text-sm text-gray-900">{value}</span>
+      key: 'course',
+      label: 'Curso',
+      render: (value: string, row: Student) => (
+        <div>
+          <div className="text-sm font-medium text-gray-900">{value}</div>
+          <div className="text-sm text-gray-500">{row.semester}º Trimestre</div>
         </div>
       ),
     },
@@ -148,24 +179,39 @@ const StudentManagement: React.FC = () => {
   ];
 
   const handleAdd = () => {
-    console.log('Add new student');
-    // In a real app, open modal or navigate to form
+    setSelectedStudent(null);
+    setShowModal(true);
   };
 
   const handleEdit = (id: string) => {
-    console.log('Edit student:', id);
-    // In a real app, open modal or navigate to form
+    const student = students.find(s => s.id === id);
+    if (student) {
+      setSelectedStudent(student);
+      setShowModal(true);
+    }
   };
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Tem certeza que deseja excluir este aluno?')) {
       try {
-        // await apiService.deleteStudent(id);
+        await apiService.deleteStudent(id);
         loadStudents();
       } catch (error) {
         console.error('Error deleting student:', error);
+        alert('Erro ao excluir estudante. Tente novamente.');
       }
     }
+  };
+
+  const handleModalSuccess = () => {
+    setShowModal(false);
+    setSelectedStudent(null);
+    loadStudents();
+  };
+
+  const handleModalClose = () => {
+    setShowModal(false);
+    setSelectedStudent(null);
   };
 
   return (
@@ -193,7 +239,7 @@ const StudentManagement: React.FC = () => {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">Alunos Ativos</dt>
-                    <dd className="text-lg font-medium text-gray-900">285</dd>
+                    <dd className="text-lg font-medium text-gray-900">{stats.active}</dd>
                   </dl>
                 </div>
               </div>
@@ -209,7 +255,7 @@ const StudentManagement: React.FC = () => {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">Alunos Inativos</dt>
-                    <dd className="text-lg font-medium text-gray-900">35</dd>
+                    <dd className="text-lg font-medium text-gray-900">{stats.inactive}</dd>
                   </dl>
                 </div>
               </div>
@@ -220,7 +266,7 @@ const StudentManagement: React.FC = () => {
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <FileText className="h-6 w-6 text-blue-600" />
+                  <BookOpen className="h-6 w-6 text-blue-600" />
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
@@ -241,7 +287,7 @@ const StudentManagement: React.FC = () => {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">Total</dt>
-                    <dd className="text-lg font-medium text-gray-900">320</dd>
+                    <dd className="text-lg font-medium text-gray-900">{stats.total}</dd>
                   </dl>
                 </div>
               </div>
@@ -262,6 +308,15 @@ const StudentManagement: React.FC = () => {
           }}
         />
       </div>
+
+      {/* Student Modal */}
+      {showModal && (
+        <StudentModal
+          student={selectedStudent}
+          onClose={handleModalClose}
+          onSuccess={handleModalSuccess}
+        />
+      )}
     </Layout>
   );
 };

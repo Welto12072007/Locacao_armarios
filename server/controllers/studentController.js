@@ -1,15 +1,39 @@
 import {Student} from '../models/Student.js';
 
+// Helper function to transform database fields to frontend format
+const transformStudentData = (student) => {
+  if (!student) return null;
+  
+  return {
+    ...student,
+    studentId: student.student_id,
+    semester: student.trimester, // Map trimester to semester for frontend compatibility
+    student_id: undefined, // Remove the snake_case field
+    trimester: undefined // Remove the database field
+  };
+};
+
+// Helper function to transform array of students
+const transformStudentsData = (students) => {
+  return students.map(transformStudentData);
+};
+
 export const getStudents = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || '';
+    const offset = (page - 1) * limit;
 
-    const result = await Student.findAll(page, limit);
+    const result = await Student.findAll(limit, offset, search);
 
     res.json({
       success: true,
-      ...result
+      data: transformStudentsData(result.students),
+      total: result.total,
+      page: page,
+      limit: limit,
+      totalPages: Math.ceil(result.total / limit)
     });
   } catch (error) {
     console.error('Get students error:', error);
@@ -34,7 +58,7 @@ export const getStudent = async (req, res) => {
 
     res.json({
       success: true,
-      data: student
+      data: transformStudentData(student)
     });
   } catch (error) {
     console.error('Get student error:', error);
@@ -52,11 +76,19 @@ export const createStudent = async (req, res) => {
     if (!name || !email || !studentId || !course || !semester) {
       return res.status(400).json({
         success: false,
-        message: 'Campos obrigatórios: nome, email, matrícula, curso e semestre'
+        message: 'Campos obrigatórios: nome, email, matrícula, curso e trimestre'
       });
     }
 
-    // Check if email or studentId already exists
+    // Validar trimestre (1-3)
+    if (semester < 1 || semester > 3) {
+      return res.status(400).json({
+        success: false,
+        message: 'Trimestre deve estar entre 1 e 3'
+      });
+    }
+
+    // Check if email or student_id already exists
     const [existingEmail, existingStudentId] = await Promise.all([
       Student.findByEmail(email),
       Student.findByStudentId(studentId)
@@ -80,16 +112,16 @@ export const createStudent = async (req, res) => {
       name,
       email,
       phone,
-      studentId,
+      student_id: studentId,
       course,
-      semester,
-      status
+      trimester: parseInt(semester),
+      status: status || 'active'
     });
 
     res.status(201).json({
       success: true,
       message: 'Aluno criado com sucesso',
-      data: student
+      data: transformStudentData(student)
     });
   } catch (error) {
     console.error('Create student error:', error);
@@ -103,7 +135,33 @@ export const createStudent = async (req, res) => {
 export const updateStudent = async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const { name, email, phone, studentId, course, semester, status } = req.body;
+
+    // Map camelCase to snake_case for database
+    const updateData = {
+      name,
+      email,
+      phone,
+      student_id: studentId,
+      course,
+      trimester: semester ? parseInt(semester) : undefined,
+      status
+    };
+
+    // Validar trimestre se fornecido
+    if (semester && (semester < 1 || semester > 3)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Trimestre deve estar entre 1 e 3'
+      });
+    }
+
+    // Remove undefined values
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) {
+        delete updateData[key];
+      }
+    });
 
     const student = await Student.update(id, updateData);
 
@@ -117,7 +175,7 @@ export const updateStudent = async (req, res) => {
     res.json({
       success: true,
       message: 'Aluno atualizado com sucesso',
-      data: student
+      data: transformStudentData(student)
     });
   } catch (error) {
     console.error('Update student error:', error);
@@ -150,6 +208,23 @@ export const deleteStudent = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Erro ao excluir aluno'
+    });
+  }
+};
+
+export const getStudentStats = async (req, res) => {
+  try {
+    const stats = await Student.getStats();
+
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    console.error('Get student stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao carregar estatísticas dos alunos'
     });
   }
 };
