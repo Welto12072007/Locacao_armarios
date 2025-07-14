@@ -204,3 +204,10 @@ export interface PaginatedResponse<T> {
   limit: number;
   totalPages: number;
 }
+
+export interface Local {
+  id: string;
+  nome: string;
+  descricao?: string;
+  criado_em: string;
+}

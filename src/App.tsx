@@ -7,9 +7,8 @@ import LockerManagement from './components/lockers/LockerManagement';
 import StudentManagement from './components/students/StudentManagement';
 import RentalManagement from './components/rentals/RentalManagement';
 import UserManagement from './components/users/UserManagement';
+import LocalManagement from './components/locais/LocalManagement';  // importe o componente Locais
 
-// Simple router component for demo purposes
-// In a real app, use React Router
 const AppRouter: React.FC = () => {
   const { user, isLoading } = useAuth();
   const [currentRoute, setCurrentRoute] = React.useState('dashboard');
@@ -64,7 +63,6 @@ const AppRouter: React.FC = () => {
     return <LoginForm />;
   }
 
-  // Simple routing
   switch (currentRoute) {
     case 'lockers':
       return <LockerManagement />;
@@ -72,8 +70,9 @@ const AppRouter: React.FC = () => {
       return <StudentManagement />;
     case 'rentals':
       return <RentalManagement />;
+    case 'locais':        // novo case para locais
+      return <LocalManagement />;
     case 'users':
-      // Only admins can access user management
       if (user.role === 'admin') {
         return <UserManagement />;
       }
@@ -81,6 +80,8 @@ const AppRouter: React.FC = () => {
     case 'dashboard':
     default:
       return <Dashboard />;
+      case 'locais':
+  return <LocalManagement />;
   }
 };
 
