@@ -7,6 +7,7 @@ import {
   PaginatedResponse 
 } from '../types';
 
+
 // API service with real backend integration
 class ApiService {
   private baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
@@ -288,8 +289,14 @@ class ApiService {
   }
 
   // Rentals
-  async getRentals(page = 1, limit = 10): Promise<PaginatedResponse<Rental>> {
-    const response = await this.request<PaginatedResponse<Rental>>(`/rentals?page=${page}&limit=${limit}`);
+  async getRentals(page = 1, limit = 10, search = ''): Promise<PaginatedResponse<Rental>> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+      ...(search && { search })
+    });
+
+    const response = await this.request<PaginatedResponse<Rental>>(`/rentals?${params}`);
     return response;
   }
 
@@ -303,7 +310,7 @@ class ApiService {
     throw new Error(response.message);
   }
 
-  async createRental(rental: Omit<Rental, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<Rental>> {
+  async createRental(rental: any): Promise<ApiResponse<Rental>> {
     const response = await this.request<ApiResponse<Rental>>('/rentals', {
       method: 'POST',
       body: JSON.stringify(rental),
@@ -312,7 +319,7 @@ class ApiService {
     return response;
   }
 
-  async updateRental(id: string, rental: Partial<Rental>): Promise<ApiResponse<Rental>> {
+  async updateRental(id: string, rental: any): Promise<ApiResponse<Rental>> {
     const response = await this.request<ApiResponse<Rental>>(`/rentals/${id}`, {
       method: 'PUT',
       body: JSON.stringify(rental),
@@ -326,6 +333,21 @@ class ApiService {
       method: 'DELETE',
     });
 
+    return response;
+  }
+
+  async getRentalStats(): Promise<ApiResponse<any>> {
+    const response = await this.request<ApiResponse<any>>('/rentals/stats');
+    return response;
+  }
+
+  async getRentalsByStudent(studentId: string): Promise<ApiResponse<Rental[]>> {
+    const response = await this.request<ApiResponse<Rental[]>>(`/rentals/student/${studentId}`);
+    return response;
+  }
+
+  async getRentalsByLocker(lockerId: string): Promise<ApiResponse<Rental[]>> {
+    const response = await this.request<ApiResponse<Rental[]>>(`/rentals/locker/${lockerId}`);
     return response;
   }
 }
