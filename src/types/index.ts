@@ -150,23 +150,33 @@ export interface Locker {
   updatedAt: string;
 }
 
-export interface Rental {
-  id: string;
+ export interface Rental {
+   id: string;
   lockerId: string;
   studentId: string;
   startDate: string;
   endDate: string;
   monthlyPrice: number;
   totalAmount: number;
-  status: 'active' | 'overdue' | 'completed' | 'cancelled';
-  paymentStatus: 'pending' | 'paid' | 'overdue';
-  notes?: string;
+  locker_id: string;
+  student_id: string;
+  start_date: string;
+  end_date: string;
+  monthly_price: number;
+  total_amount: number;
+   status: 'active' | 'overdue' | 'completed' | 'cancelled';
+  paymentStatus: 'paid' | 'pending' | 'overdue';
+  payment_status: 'paid' | 'pending' | 'overdue';
+   notes?: string;
   createdAt: string;
   updatedAt: string;
-  // Relations
   locker?: Locker;
   student?: Student;
-}
+  created_at: string;
+  updated_at: string;
+  lockers?: Locker;
+  students?: Student;
+ }
 
 export interface Payment {
   id: string;

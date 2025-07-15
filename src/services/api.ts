@@ -256,8 +256,6 @@ class ApiService {
   }
 
   // Rentals
-  async getRentals(page = 1, limit = 10): Promise<PaginatedResponse<Rental>> {
-    return this.request(`/rentals?page=${page}&limit=${limit}`);
   }
 
   async getRental(id: string): Promise<Rental> {
@@ -266,11 +264,6 @@ class ApiService {
     throw new Error(response.message);
   }
 
-  async getLockers(): Promise<PaginatedResponse<Locker>> {
-    return this.request('/lockers');
-  }
-
-  // LOCALS - CRUD de Locais
 
 async getLocais(page = 1, limit = 10): Promise<PaginatedResponse<Local>> {
   return this.request(`/locais?page=${page}&limit=${limit}`);
