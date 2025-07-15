@@ -10,8 +10,9 @@ import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import dashboardRoutes from './routes/dashboard.js';
 import studentRoutes from './routes/students.js';
-import lockerRoutes from './routes/lockers.js';
+import armarioRoutes from './routes/lockers.js';
 import rentalRoutes from './routes/rentals.js';
+import locaisRoutes from './routes/locais.js';
 
 dotenv.config();
 
@@ -42,8 +43,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/students', studentRoutes);
-app.use('/api/lockers', lockerRoutes);
+app.use('/api/armarios', armarioRoutes);  // rota armários atualizada
 app.use('/api/rentals', rentalRoutes);
+app.use('/api/locais', locaisRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -60,7 +62,6 @@ app.get('/api/health', (req, res) => {
 app.use((err, req, res, next) => {
   console.error('❌ Server Error:', err);
   
-  // Handle specific error types
   if (err.name === 'ValidationError') {
     return res.status(400).json({
       success: false,
@@ -83,7 +84,6 @@ app.use((err, req, res, next) => {
     });
   }
   
-  // Default error response
   res.status(500).json({
     success: false,
     message: process.env.NODE_ENV === 'production' 
@@ -124,6 +124,15 @@ const startServer = async () => {
       console.log('   POST /api/auth/forgot-password - Request password reset');
       console.log('   POST /api/auth/reset-password - Reset password');
       console.log('   GET  /api/users - List users (admin only)');
+      console.log('');
+      console.log('📦 Armários Endpoints:');
+      console.log('   GET  /api/armarios - List armários (com paginação, busca e filtros)');
+      console.log('   GET  /api/armarios/stats - Estatísticas dos armários');
+      console.log('   GET  /api/armarios/disponiveis - Armários disponíveis');
+      console.log('   GET  /api/armarios/:id - Get armário específico');
+      console.log('   POST /api/armarios - Create new armário');
+      console.log('   PUT  /api/armarios/:id - Update armário');
+      console.log('   DELETE /api/armarios/:id - Delete armário');
       console.log('');
       console.log('📧 Default Admin Credentials:');
       console.log('   Email: admin@lockers.com');

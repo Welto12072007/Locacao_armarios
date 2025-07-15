@@ -1,6 +1,110 @@
-// Core Types for Locker Management System
+export interface Armario {
+  id: string;
+  numero: string;
+  localizacao: string;
+  status: 'disponível' | 'alugado' | 'manutenção';
+  observacoes?: string;
+  criado_em: string;
+}
 
-export  default interface User {
+export interface ArmarioStats {
+  total: number;
+  disponivel: number;
+  alugado: number;
+  manutencao: number;
+}
+
+export interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message?: string;
+}
+
+export interface ApiListResponse<T> extends ApiResponse<T[]> {
+  pagination: PaginationInfo;
+}
+
+export interface CreateArmarioData {
+  numero: string;
+  localizacao: string;
+  status?: 'disponível' | 'alugado' | 'manutenção';
+  observacoes?: string;
+}
+
+export interface UpdateArmarioData {
+  numero?: string;
+  localizacao?: string;
+  status?: 'disponível' | 'alugado' | 'manutenção';
+  observacoes?: string;
+}
+
+// User do primeiro tipo, para Auth simples
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  role: 'admin' | 'user';
+  createdAt: string;
+}
+
+export interface AuthResponse {
+  success: boolean;
+  user?: AuthUser;
+  token?: string;
+  message?: string;
+}
+
+// Tipos para componentes UI
+export interface TableColumn {
+  key: string;
+  label: string;
+  sortable?: boolean;
+  render?: (value: any, row: any) => React.ReactNode;
+}
+
+export interface TableProps {
+  columns: TableColumn[];
+  data: any[];
+  loading?: boolean;
+  pagination?: {
+    currentPage: number;
+    totalPages: number;
+    total: number;
+    onPageChange: (page: number) => void;
+  };
+}
+
+export interface ButtonProps {
+  children?: React.ReactNode;
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  size?: 'sm' | 'md' | 'lg';
+  icon?: React.ComponentType<any>;
+  loading?: boolean;
+  disabled?: boolean;
+  onClick?: () => void;
+  type?: 'button' | 'submit' | 'reset';
+  className?: string;
+}
+
+export interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+}
+
+// -- Tipos da segunda parte (mais detalhados para sistema completo) --
+
+export interface CoreUser {
   id: string;
   email: string;
   role: 'admin' | 'user';
@@ -97,16 +201,10 @@ export interface DashboardStats {
 }
 
 export interface AuthContextType {
-  user: User | null;
+  user: CoreUser | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
-}
-
-export interface ApiResponse<T> {
-  data: T;
-  message: string;
-  success: boolean;
 }
 
 export interface PaginatedResponse<T> {
@@ -115,4 +213,11 @@ export interface PaginatedResponse<T> {
   page: number;
   limit: number;
   totalPages: number;
+}
+
+export interface Local {
+  id: string;
+  nome: string;
+  descricao?: string;
+  criado_em: string;
 }

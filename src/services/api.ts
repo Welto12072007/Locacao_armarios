@@ -1,39 +1,43 @@
-import { 
-  Student, 
-  Locker, 
-  Rental,  
-  DashboardStats, 
-  ApiResponse, 
-  PaginatedResponse 
+import {
+  Student,
+  Locker,
+  Rental,
+  DashboardStats,
+  ApiResponse,
+  PaginatedResponse,
+  ArmarioStats,
+  Armario as ArmarioType,
+  Local,
 } from '../types';
 
-
-// API service with real backend integration
 class ApiService {
   private baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const token = localStorage.getItem('auth_token');
-    
+
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
         ...(token && { Authorization: `Bearer ${token}` }),
       },
-      credentials: 'include', // Include cookies for refresh tokens
+      credentials: 'include',
       ...options,
     };
 
     try {
       console.log(`🌐 API Request: ${this.baseUrl}${endpoint}`, config);
-      
       const response = await fetch(`${this.baseUrl}${endpoint}`, config);
-      
+
       console.log(`📡 Response Status: ${response.status}`, response.statusText);
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('❌ API Error:', errorData);
+        if (response.status === 401) {
+          this.logout();
+          throw new Error('Sessão expirada. Faça login novamente.');
+        }
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
@@ -42,51 +46,53 @@ class ApiService {
       return data;
     } catch (error) {
       console.error('💥 API request failed:', error);
-      
-      // Handle network errors
       if (error instanceof TypeError && error.message.includes('fetch')) {
         throw new Error('Erro de conexão. Verifique se o servidor está rodando.');
       }
-      
       throw error;
     }
   }
 
-  // Health check to verify API connection
-  async healthCheck(): Promise<{ status: string; database: string; timestamp: string }> {
-    try {
-      const response = await this.request<{ success: boolean; message: string; timestamp: string; database: string; version: string }>('/health');
-      return {
-        status: response.success ? 'OK' : 'ERROR',
-        database: response.database,
-        timestamp: response.timestamp
-      };
-    } catch (error) {
-      throw new Error('Servidor não está respondendo');
-    }
-  }
-
   // Auth
-  async login(email: string, password: string): Promise<{ user: any; token: string }> {
-    const response = await this.request<ApiResponse<{ user: any; accessToken: string }>>('/auth/login', {
+  async login(email: string, password: string): Promise<ApiResponse<{ token: string }>> {
+    return this.request('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
+  }
 
-    if (response.success) {
-      localStorage.setItem('auth_token', response.data.accessToken);
-      return {
-        user: response.data.user,
-        token: response.data.accessToken
-      };
+  async logout(): Promise<void> {
+    try {
+      await this.request('/auth/logout', { method: 'POST' });
+    } finally {
+      localStorage.removeItem('auth_token');
     }
+  }
 
-    throw new Error(response.message);
+  // Altere 'User' para um tipo existente, por exemplo 'any' ou defina o tipo correto
+  async getCurrentUser(): Promise<ApiResponse<any>> {
+    return this.request<ApiResponse<any>>('/auth/me');
+  }
+
+  isAuthenticated(): boolean {
+    return !!localStorage.getItem('auth_token');
+  }
+
+  getToken(): string | null {
+    return localStorage.getItem('auth_token');
+  }
+
+  // Health check corrigido
+  async healthCheck(): Promise<{ status: string; database: string; timestamp: string }> {
+    const response = await this.request<ApiResponse<{ timestamp: string; database: string; version: string }>>('/health');
+    return {
+      status: response.success ? 'OK' : 'ERROR',
+      database: response.data.database,
+      timestamp: response.data.timestamp,
+    };
   }
 
   async register(name: string, email: string, password: string): Promise<{ user: any; token: string }> {
-    console.log('🔐 Registering user:', { name, email });
-    
     const response = await this.request<ApiResponse<{ user: any; accessToken: string }>>('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ name, email, password }),
@@ -96,7 +102,7 @@ class ApiService {
       localStorage.setItem('auth_token', response.data.accessToken);
       return {
         user: response.data.user,
-        token: response.data.accessToken
+        token: response.data.accessToken,
       };
     }
 
@@ -122,9 +128,7 @@ class ApiService {
       body: JSON.stringify({ email }),
     });
 
-    if (!response.success) {
-      throw new Error(response.message);
-    }
+    if (!response.success) throw new Error(response.message);
   }
 
   async resetPassword(token: string, password: string): Promise<void> {
@@ -133,40 +137,22 @@ class ApiService {
       body: JSON.stringify({ token, password }),
     });
 
-    if (!response.success) {
-      throw new Error(response.message);
-    }
+    if (!response.success) throw new Error(response.message);
   }
 
   async validateResetToken(token: string): Promise<void> {
     const response = await this.request<ApiResponse<null>>(`/auth/validate-reset-token?token=${token}`);
-
-    if (!response.success) {
-      throw new Error(response.message);
-    }
+    if (!response.success) throw new Error(response.message);
   }
 
-  async logout(): Promise<void> {
-    try {
-      await this.request('/auth/logout', { method: 'POST' });
-    } finally {
-      localStorage.removeItem('auth_token');
-    }
-  }
-
-  // Users (Admin only)
+  // Users
   async getUsers(page = 1, limit = 10): Promise<PaginatedResponse<any>> {
-    const response = await this.request<PaginatedResponse<any>>(`/users?page=${page}&limit=${limit}`);
-    return response;
+    return this.request(`/users?page=${page}&limit=${limit}`);
   }
 
   async getUser(id: string): Promise<any> {
     const response = await this.request<ApiResponse<any>>(`/users/${id}`);
-    
-    if (response.success) {
-      return response.data;
-    }
-
+    if (response.success) return response.data;
     throw new Error(response.message);
   }
 
@@ -175,11 +161,7 @@ class ApiService {
       method: 'PUT',
       body: JSON.stringify(userData),
     });
-
-    if (response.success) {
-      return response.data;
-    }
-
+    if (response.success) return response.data;
     throw new Error(response.message);
   }
 
@@ -187,73 +169,51 @@ class ApiService {
     const response = await this.request<ApiResponse<null>>(`/users/${id}`, {
       method: 'DELETE',
     });
-
-    if (!response.success) {
-      throw new Error(response.message);
-    }
+    if (!response.success) throw new Error(response.message);
   }
 
   // Dashboard
   async getDashboardStats(): Promise<DashboardStats> {
     const response = await this.request<ApiResponse<DashboardStats>>('/dashboard/stats');
-    
-    if (response.success) {
-      return response.data;
-    }
-
+    if (response.success) return response.data;
     throw new Error(response.message);
   }
 
   // Students
   async getStudents(page = 1, limit = 10): Promise<PaginatedResponse<Student>> {
-    const response = await this.request<PaginatedResponse<Student>>(`/students?page=${page}&limit=${limit}`);
-    return response;
+    return this.request(`/students?page=${page}&limit=${limit}`);
   }
 
   async getStudent(id: string): Promise<Student> {
     const response = await this.request<ApiResponse<Student>>(`/students/${id}`);
-    
-    if (response.success) {
-      return response.data;
-    }
-
+    if (response.success) return response.data;
     throw new Error(response.message);
   }
 
   async createStudent(student: Omit<Student, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<Student>> {
-    const response = await this.request<ApiResponse<Student>>('/students', {
+    return this.request('/students', {
       method: 'POST',
       body: JSON.stringify(student),
     });
-
-    return response;
   }
 
   async updateStudent(id: string, student: Partial<Student>): Promise<ApiResponse<Student>> {
-    const response = await this.request<ApiResponse<Student>>(`/students/${id}`, {
+    return this.request(`/students/${id}`, {
       method: 'PUT',
       body: JSON.stringify(student),
     });
-
-    return response;
   }
 
   async deleteStudent(id: string): Promise<ApiResponse<null>> {
-    const response = await this.request<ApiResponse<null>>(`/students/${id}`, {
-      method: 'DELETE',
-    });
-
-    return response;
+    return this.request(`/students/${id}`, { method: 'DELETE' });
   }
 
-  // Lockers
-  async getLockers(page = 1, limit = 10): Promise<PaginatedResponse<Locker>> {
-    const response = await this.request<PaginatedResponse<Locker>>(`/lockers?page=${page}&limit=${limit}`);
-    return response;
+  // Lockers (Armários)
+  async getArmarios(page = 1, limit = 10): Promise<PaginatedResponse<Locker>> {
+    return this.request(`/armarios?page=${page}&limit=${limit}`);
   }
-
-  async getLocker(id: string): Promise<Locker> {
-    const response = await this.request<ApiResponse<Locker>>(`/lockers/${id}`);
+  async getStudentStats(): Promise<{ total: number; active: number; inactive: number }> {
+    const response = await this.request<ApiResponse<{ total: number; active: number; inactive: number }>>('/students/stats');
     
     if (response.success) {
       return response.data;
@@ -262,94 +222,80 @@ class ApiService {
     throw new Error(response.message);
   }
 
-  async createLocker(locker: Omit<Locker, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<Locker>> {
-    const response = await this.request<ApiResponse<Locker>>('/lockers', {
+  // Lockers
+  async getArmario(id: string): Promise<Locker> {
+    const response = await this.request<ApiResponse<Locker>>(`/armarios/${id}`);
+    if (response.success) return response.data;
+    throw new Error(response.message);
+  }
+
+  async createArmario(armario: Omit<Locker, 'id' | 'criado_em'>): Promise<ApiResponse<Locker>> {
+    return this.request('/armarios', {
       method: 'POST',
-      body: JSON.stringify(locker),
+      body: JSON.stringify(armario),
     });
-
-    return response;
   }
 
-  async updateLocker(id: string, locker: Partial<Locker>): Promise<ApiResponse<Locker>> {
-    const response = await this.request<ApiResponse<Locker>>(`/lockers/${id}`, {
+  async updateArmario(id: string, armario: Partial<Locker>): Promise<ApiResponse<Locker>> {
+    return this.request(`/armarios/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(locker),
+      body: JSON.stringify(armario),
     });
-
-    return response;
   }
 
-  async deleteLocker(id: string): Promise<ApiResponse<null>> {
-    const response = await this.request<ApiResponse<null>>(`/lockers/${id}`, {
-      method: 'DELETE',
-    });
+  async deleteArmario(id: string): Promise<ApiResponse<null>> {
+    return this.request(`/armarios/${id}`, { method: 'DELETE' });
+  }
 
-    return response;
+  async getArmarioStats(): Promise<ApiResponse<ArmarioStats>> {
+    return this.request('/armarios/stats');
+  }
+
+  async getArmariosDisponiveis(): Promise<ApiResponse<ArmarioType[]>> {
+    return this.request('/armarios/disponiveis');
   }
 
   // Rentals
-  async getRentals(page = 1, limit = 10, search = ''): Promise<PaginatedResponse<Rental>> {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString(),
-      ...(search && { search })
-    });
-
-    const response = await this.request<PaginatedResponse<Rental>>(`/rentals?${params}`);
-    return response;
   }
 
   async getRental(id: string): Promise<Rental> {
     const response = await this.request<ApiResponse<Rental>>(`/rentals/${id}`);
-    
-    if (response.success) {
-      return response.data;
-    }
-
+    if (response.success) return response.data;
     throw new Error(response.message);
   }
 
-  async createRental(rental: any): Promise<ApiResponse<Rental>> {
-    const response = await this.request<ApiResponse<Rental>>('/rentals', {
-      method: 'POST',
-      body: JSON.stringify(rental),
-    });
 
-    return response;
-  }
-
-  async updateRental(id: string, rental: any): Promise<ApiResponse<Rental>> {
-    const response = await this.request<ApiResponse<Rental>>(`/rentals/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(rental),
-    });
-
-    return response;
-  }
-
-  async deleteRental(id: string): Promise<ApiResponse<null>> {
-    const response = await this.request<ApiResponse<null>>(`/rentals/${id}`, {
-      method: 'DELETE',
-    });
-
-    return response;
-  }
-
-  async getRentalStats(): Promise<ApiResponse<any>> {
-    const response = await this.request<ApiResponse<any>>('/rentals/stats');
-    return response;
-  }
-
-  async getRentalsByStudent(studentId: string): Promise<ApiResponse<Rental[]>> {
-    const response = await this.request<ApiResponse<Rental[]>>(`/rentals/student/${studentId}`);
-    return response;
-  }
-
-  async getRentalsByLocker(lockerId: string): Promise<ApiResponse<Rental[]>> {
-    const response = await this.request<ApiResponse<Rental[]>>(`/rentals/locker/${lockerId}`);
-    return response;
-  }
+async getLocais(page = 1, limit = 10): Promise<PaginatedResponse<Local>> {
+  return this.request(`/locais?page=${page}&limit=${limit}`);
 }
 
+async getLocal(id: string): Promise<Local> {
+  const response = await this.request<ApiResponse<Local>>(`/locais/${id}`);
+  if (response.success) return response.data;
+  throw new Error(response.message);
+}
+
+async createLocal(local: { nome: string; descricao?: string }): Promise<ApiResponse<Local>> {
+  return this.request('/locais', {
+    method: 'POST',
+    body: JSON.stringify(local),
+  });
+}
+
+async updateLocal(id: string, local: { nome?: string; descricao?: string }): Promise<ApiResponse<Local>> {
+  return this.request(`/locais/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(local),
+  });
+}
+
+async deleteLocal(id: string): Promise<ApiResponse<null>> {
+  return this.request(`/locais/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+}
+
+// Exportando uma instância do ApiService
 export const apiService = new ApiService();
